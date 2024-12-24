@@ -1,5 +1,5 @@
 class User{
-    constructor(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password){
+    constructor(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, creationDate){
         this.firstName = firstName;
         this.lastName = lastName;
         this.preferredName = preferredName;
@@ -10,8 +10,8 @@ class User{
         this.address = address;
         this.country = country
         this.password = password;
-        this.creationDate = null; //wordt aangemaakt in de Post
-        this.updateDate = null; //wordt aangemaakt in de Post
+        this.creationDate = creationDate; 
+        this.updateDate = null; //wordt aangemaakt in de DB
         this.id = null; //wordt aangemaakt in de DB
     }
 
@@ -25,9 +25,8 @@ class User{
         this.password = await bcrypt.hash(this.password, 10); // 10 = complexiteit van hashen, 10 = default
     }
 
-    setID_cDate_uDate(id, creationDate, updateDate) { //methode voor de props die later worden toegewezen (uDate en cDate bij Post, id in DB)
+    setOtherProps(id, updateDate) { //methode voor de props die later worden toegewezen (uDate en cDate bij Post, id in DB)
         this.id = id;
-        this.creationDate = creationDate;
         this.updateDate = updateDate;
     }
 } 

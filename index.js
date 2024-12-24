@@ -24,14 +24,19 @@ app.get('/', (req, res) => {
     res.send('Hello World!');
 });
 
+
 //User Registration
 app.post('/api/users', async (req,res) => {
     const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password} = req.body;
-    const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password);
-    const creationDate = new Date().toISOString(); //formatting voor tijdstip in YYYY-MM-DD
+    const creationDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, creationDate);
+    console.log(user.creationDate)
+
+
+ //formatting voor tijdstip in YYYY-MM-DD
 
     if (!user.isValidEmail()) {
-        return res.status(400).send({ error: 'Invalid email format' });
+        return res.status(201).send({ error: 'Invalid email format' });
     }
     await user.hashPassword();
 
