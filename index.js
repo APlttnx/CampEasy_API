@@ -3,12 +3,13 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const bcrypt = require('bcrypt'); // wachtwoordbeveiliging
+const jwt = require('jsonwebtoken');
 
 // klasses importeren
 const Database = require('./classes/database.js');
 const User = require('./classes/user.js');
 const app = express();
-const JWT_SECRET = 'CampEasyPass_WebFundies_20242025_1613'
+const JWT_SECRET = 'CampEasyPass_WebFundies_20242025_1613';
 
 
 app.use(express.json());
@@ -53,6 +54,7 @@ app.post('/api/login', async (req, res) => {
     const db = new Database();
 
     try {
+
         const result = await db.getQuery('SELECT * FROM users WHERE email = ?', [email]);
         if (result.length === 0) {
             return res.status(401).json({ error: 'Foutieve ingave' });
@@ -64,22 +66,27 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Foutieve ingave' });
         }
 
-        const token = jst.sign(
+        // if (!process.env.JWT_SECRET) {
+        //     throw new Error('JWT_SECRET not defined');
+        // }
+
+        const token = jwt.sign(
             {userId: u.id, role: u.roleUser},
             JWT_SECRET,
-            {expiresIn: '24h '}
+            {expiresIn: '24h'}
         )
 
         res.json({
             token,
             userID: u.id,
-            userRole: u.role,
+            userRole: u.roleUser,
             firstName: u.firstName,
-            prefName: u.prefName,
-            userMail: u.mail,
-        })
+            prefName: u.preferredName,
+            userMail: u.email
+        });
     } catch (error){
-        res.status(500).json({error: 'Login failed'});
+        console.error('Error during login:', error);
+        res.status(500).json({ error: 'Login failed', details: error.message });
     }
 })
 
