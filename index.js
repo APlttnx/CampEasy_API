@@ -119,8 +119,6 @@ app.get('/api/users', async (req, res) => {
         }
         const u = result[0];
         const user = new User(u.firstName, u.lastName, u.preferredName, u.roleUser, u.email, u.phoneNumber, u.address, u.country,u.emergencyTel,"",u.creationDate,u.updateDate, u.id);
-        console.log(user.firstName);
-
 
         res.json({
             id: user.id,
