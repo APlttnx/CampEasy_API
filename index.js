@@ -26,36 +26,52 @@ app.get('/', (req, res) => {
     res.send('Hello World!');
 });
 
-
+// ____________________________________________________________________________________________________________________________________
 //User Registration
 app.post('/api/users', async (req,res) => {
     const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password} = req.body;
-    const creationDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, creationDate);
-    console.log(user.creationDate)
+    const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password);
 
+    try{
+        if (!user.isValidEmail()) {
+            return res.status(201).send({ error: 'Invalid email format' });
+        }
+        await user.hashPassword();
 
- //formatting voor tijdstip in YYYY-MM-DD
+        const db = new Database();
+        const result = await db.getQuery('INSERT INTO users (firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [user.firstName, user.lastName, user.preferredName, user.roleUser, user.email, user.phoneNumber, user.address, user.country, user.emergencyTel]
+        );
 
-    if (!user.isValidEmail()) {
-        return res.status(201).send({ error: 'Invalid email format' });
+        if (result.insertId){
+            user.id = result.insertId;
+        }else{
+            const idResult = await DataView.getQuery('SELECT LAST_INSERT_ID() as id');
+            user.id = idResult[0].id;
+        }
+
+        await db.getQuery('INSERT INTO passwords (userID, password) VALUES (?,? )',
+            [ user.id, user.password]
+        );
+
+        res.status(201).send({ message: 'User added successfully' });
     }
-    await user.hashPassword();
-
-    const db = new Database();
-    db.getQuery('INSERT INTO users (firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, password, emergencyTel, creationDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [user.firstName, user.lastName, user.preferredName, user.roleUser, user.email, user.phoneNumber, user.address, user.country, user.password, user.emergencyTel, user.creationDate])
-        .then(() => res.status(201).send({ message: 'User added successfully' }))
-        .catch((error) => res.status(500).send({ error: 'Failed to add user', details: error }));
+    catch (error){
+        res.status(500).send({ error: 'Failed to add user', details: error })
+    }
 })
-
+// ____________________________________________________________________________________________________________________________________
 app.post('/api/login', async (req, res) => {
     const {email, password} = req.body;
     const db = new Database();
 
     try {
-
-        const result = await db.getQuery('SELECT * FROM users WHERE email = ?', [email]);
+        const result = await db.getQuery(
+            `SELECT u.id, u.roleUser, u.firstName, u.preferredName, p.password
+            FROM users u
+            JOIN passwords p ON u.id = p.userID
+            WHERE u.email = ?;`, 
+            [email]);
         if (result.length === 0) {
             return res.status(401).json({ error: 'Foutieve ingave' });
         }
@@ -66,10 +82,6 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Foutieve ingave' });
         }
 
-        // if (!process.env.JWT_SECRET) {
-        //     throw new Error('JWT_SECRET not defined');
-        // }
-
         const token = jwt.sign(
             {userId: u.id, role: u.roleUser},
             JWT_SECRET,
@@ -78,17 +90,23 @@ app.post('/api/login', async (req, res) => {
 
         res.json({
             token,
-            userID: u.id,
             userRole: u.roleUser,
-            firstName: u.firstName,
-            prefName: u.preferredName,
-            userMail: u.email
-        });
+            userGreetName: u.preferredName || u.firstName,
+            
+        },
+        );
     } catch (error){
-        console.error('Error during login:', error);
         res.status(500).json({ error: 'Login failed', details: error.message });
     }
 })
+// ____________________________________________________________________________________________________________________________________
+app.get('/api/users', async (req, res) => {
+    
+})
+
+
+
+
 
 app.listen(3100, () => {
     console.log('Server is running on port 3100')

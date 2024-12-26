@@ -1,5 +1,5 @@
 class User{
-    constructor(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, creationDate){
+    constructor(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password){
         this.firstName = firstName;
         this.lastName = lastName;
         this.preferredName = preferredName;
@@ -10,7 +10,7 @@ class User{
         this.address = address;
         this.country = country
         this.password = password;
-        this.creationDate = creationDate; 
+        this.creationDate = null; //wordt aangemaakt in de DB
         this.updateDate = null; //wordt aangemaakt in de DB
         this.id = null; //wordt aangemaakt in de DB
     }
@@ -27,6 +27,7 @@ class User{
 
     setOtherProps(id, updateDate) { //methode voor de props die later worden toegewezen (uDate en cDate bij Post, id in DB)
         this.id = id;
+        this.creationDate = creationDate;
         this.updateDate = updateDate;
     }
 } 
