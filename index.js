@@ -16,7 +16,7 @@ app.use(express.json());
 app.use(cors({
     origin:'http://localhost:8080',
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
-    allowedHeaders: ['Content-Type','Authorization'],   
+    allowedHeaders: ['Content-Type','Authorization'],
 }))
 
 
@@ -30,7 +30,7 @@ app.get('/', (req, res) => {
 //User Registration
 app.post('/api/users', async (req,res) => {
     const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password} = req.body;
-    const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password);
+    const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, "", "", "");
 
     try{
         if (!user.isValidEmail()) {
@@ -101,8 +101,47 @@ app.post('/api/login', async (req, res) => {
 })
 // ____________________________________________________________________________________________________________________________________
 app.get('/api/users', async (req, res) => {
-    
+    console.log('Headers:', req.headers);
+    const token = req.headers['authorization'].replace('Bearer ','');
+    console.log('Token:', token);
+    const db = new Database();
+
+    try{
+        const decoded = jwt.verify(token, JWT_SECRET);
+        console.log('Decoded token:', decoded);
+        const userIdToken = decoded.userId
+        console.log('Decoded UserID:', userIdToken);
+
+        const result = await db.getQuery('SELECT * FROM users WHERE id = ?', [userIdToken]);
+
+        if (result.length == 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        const u = result[0];
+        const user = new User(u.firstName, u.lastName, u.preferredName, u.roleUser, u.email, u.phoneNumber, u.address, u.country,u.emergencyTel,"",u.creationDate,u.updateDate, u.id);
+        console.log(user.firstName);
+
+
+        res.json({
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            preferredName: user.preferredName,
+            role: user.roleUser,
+            email: user.email,
+            phonenumber: user.phoneNumber,
+            address: user.address,
+            country: user.country,
+            creationDate: user.creationDate,
+            updateDate: user.updateDate,
+        });
+    }
+    catch (error){
+        res.status(500).json({ error: 'failed to connect to database', details: error.message });
+    }
 })
+ //________________________________________________________________________________________________________________________________-
+
 
 
 

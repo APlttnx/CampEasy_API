@@ -1,5 +1,5 @@
 class User{
-    constructor(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password){
+    constructor(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, creationDate, updateDate, id){
         this.firstName = firstName;
         this.lastName = lastName;
         this.preferredName = preferredName;
@@ -10,9 +10,9 @@ class User{
         this.address = address;
         this.country = country
         this.password = password;
-        this.creationDate = null; //wordt aangemaakt in de DB
-        this.updateDate = null; //wordt aangemaakt in de DB
-        this.id = null; //wordt aangemaakt in de DB
+        this.creationDate = creationDate; //wordt aangemaakt in de DB
+        this.updateDate = updateDate; //wordt aangemaakt in de DB
+        this.id = id; //wordt aangemaakt in de DB
     }
 
     isValidEmail() {
@@ -22,14 +22,7 @@ class User{
 
     async hashPassword() { //async --> deze methode blokkeert de rest van het programma niet wanneer deze runt, 
         const bcrypt = require('bcrypt');
-        this.password = await bcrypt.hash(this.password, 10); // 10 = complexiteit van hashen, 10 = default
+        this.password = await bcrypt.hash(this.password, 10); // 10 = complexiteit van hashen/salting, 10 = default
     }
-
-    setOtherProps(id, updateDate) { //methode voor de props die later worden toegewezen (uDate en cDate bij Post, id in DB)
-        this.id = id;
-        this.creationDate = creationDate;
-        this.updateDate = updateDate;
-    }
-} 
-
+}
 module.exports = User;
