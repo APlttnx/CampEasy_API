@@ -29,6 +29,7 @@ app.get('/', (req, res) => {
 // ____________________________________________________________________________________________________________________________________
 //User Registration
 app.post('/api/users', async (req,res) => {
+    console.log(req.body);
     const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password} = req.body;
     const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, "", "", "");
 
@@ -96,22 +97,17 @@ app.post('/api/login', async (req, res) => {
         },
         );
     } catch (error){
-        res.status(500).json({ error: 'Login failed', details: error.message });
+        res.status(500).send({ error: 'Login failed', details: error.message });
     }
 })
 // ____________________________________________________________________________________________________________________________________
 app.get('/api/users', async (req, res) => {
-    console.log('Headers:', req.headers);
     const token = req.headers['authorization'].replace('Bearer ','');
-    console.log('Token:', token);
     const db = new Database();
 
     try{
         const decoded = jwt.verify(token, JWT_SECRET);
-        console.log('Decoded token:', decoded);
         const userIdToken = decoded.userId
-        console.log('Decoded UserID:', userIdToken);
-
         const result = await db.getQuery('SELECT * FROM users WHERE id = ?', [userIdToken]);
 
         if (result.length == 0) {
@@ -135,15 +131,39 @@ app.get('/api/users', async (req, res) => {
         });
     }
     catch (error){
-        res.status(500).json({ error: 'failed to connect to database', details: error.message });
+        res.status(500).send({ error: 'failed to connect to database', details: error.message });
     }
 })
  //________________________________________________________________________________________________________________________________-
 
+app.put('/api/users', async(req,res) => {
+    try{
+        const token = req.headers['authorization'].replace('Bearer ','');
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userIdToken = decoded.userId
+        console.log(userIdToken);
+        console.log(req.body);
 
+        const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel} = req.body;
+        const user = new User(firstName, lastName, preferredName, roleUser, email , phoneNumber, address, country, emergencyTel, "", "", "", userIdToken);
+        console.log(user);
 
+        const db = new Database();
+        console.log('User ID:',user.id);
+        await db.getQuery(`
+            UPDATE users 
+            SET firstName = ?, lastName = ?, preferredName = ?, roleUser = ?, phoneNumber = ?, address = ?, country = ?, emergencyTel = ? 
+            WHERE ID = ?`,
+            [user.firstName, user.lastName, user.preferredName, user.roleUser, user.phoneNumber, user.address, user.country, user.emergencyTel, user.id]
+        );
 
+        res.status(201).send({ message: 'User updated successfully' });
+    }catch(error){
+        console.log(error);
+        res.status(500).send({ error: 'Failed to update user', details: error })
+    }
 
+})
 
 app.listen(3100, () => {
     console.log('Server is running on port 3100')
