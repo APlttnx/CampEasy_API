@@ -13,7 +13,7 @@ const app = express();
 const JWT_SECRET = 'CampEasyPass_WebFundies_20242025_1613';
 
 
-app.use(express.json());
+app.use(express.json({limit: '10mb'}));
 app.use(cors({
     origin:'http://localhost:8080',
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
@@ -171,27 +171,38 @@ app.post('/api/camping', async (req,res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const userIdToken = decoded.userId
     console.log(userIdToken);
-    console.log(req.body);
 
-    const {name, type, size, price, description, address, country} = req.body;
+
+    const {name, type, size, price, description, address, country, images} = req.body;
     const camping = new Camping(name, type, size, price, description, address, country, userIdToken, "", "", "");
+
+    console.log(camping);
 
     try{
         const db = new Database();
+        console.log(camping.name)
         const result = await db.getQuery('INSERT INTO campings (name, type, size, price, description, address, country, ownerID) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [camping.name, camping.type, camping.size, camping.price, camping.description, camping.address, camping.country, camping.ownerId, camping.emergencyTel]
+            [camping.name, camping.type, camping.size, camping.price, camping.description, camping.address, camping.country, camping.ownerId]
         );
-
+        console.log(camping.name)
         if (result.insertId){
-            user.id = result.insertId;
+            camping.id = result.insertId;
         }else{
             const idResult = await DataView.getQuery('SELECT LAST_INSERT_ID() as id');
-            user.id = idResult[0].id;
+            camping.id = idResult[0].id;
         }
+        console.log(camping.id);
 
-        await db.getQuery('INSERT INTO passwords (userID, password) VALUES (?,? )',
-            [ user.id, user.password]
-        );
+        for (const picture of images) {
+            await db.getQuery(
+                'INSERT INTO campingpictures (campingID, picture) VALUES (?, ?)',
+                [camping.id, picture]
+            );
+        }
+            
+        
+        
+
 
         res.status(201).send({ message: 'User added successfully' });
     }
