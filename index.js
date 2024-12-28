@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 // klasses importeren
 const Database = require('./classes/database.js');
 const User = require('./classes/user.js');
+const Camping = require('./classes/camping.js');
 const app = express();
 const JWT_SECRET = 'CampEasyPass_WebFundies_20242025_1613';
 
@@ -162,7 +163,41 @@ app.put('/api/users', async(req,res) => {
         console.log(error);
         res.status(500).send({ error: 'Failed to update user', details: error })
     }
+})
+//__________________________________________________________________________________________________________________________________________
 
+app.post('/api/camping', async (req,res) => {
+    const token = req.headers['authorization'].replace('Bearer ','');
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userIdToken = decoded.userId
+    console.log(userIdToken);
+    console.log(req.body);
+
+    const {name, type, size, price, description, address, country} = req.body;
+    const camping = new Camping(name, type, size, price, description, address, country, userIdToken, "", "", "");
+
+    try{
+        const db = new Database();
+        const result = await db.getQuery('INSERT INTO campings (name, type, size, price, description, address, country, ownerID) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [camping.name, camping.type, camping.size, camping.price, camping.description, camping.address, camping.country, camping.ownerId, camping.emergencyTel]
+        );
+
+        if (result.insertId){
+            user.id = result.insertId;
+        }else{
+            const idResult = await DataView.getQuery('SELECT LAST_INSERT_ID() as id');
+            user.id = idResult[0].id;
+        }
+
+        await db.getQuery('INSERT INTO passwords (userID, password) VALUES (?,? )',
+            [ user.id, user.password]
+        );
+
+        res.status(201).send({ message: 'User added successfully' });
+    }
+    catch (error){
+        res.status(500).send({ error: 'Failed to add user', details: error })
+    }
 })
 
 app.listen(3100, () => {
