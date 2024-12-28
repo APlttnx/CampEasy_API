@@ -170,17 +170,12 @@ app.post('/api/camping', async (req,res) => {
     const token = req.headers['authorization'].replace('Bearer ','');
     const decoded = jwt.verify(token, JWT_SECRET);
     const userIdToken = decoded.userId
-    console.log(userIdToken);
-
 
     const {name, type, size, price, description, address, country, images} = req.body;
     const camping = new Camping(name, type, size, price, description, address, country, userIdToken, "", "", "");
 
-    console.log(camping);
-
     try{
         const db = new Database();
-        console.log(camping.name)
         const result = await db.getQuery('INSERT INTO campings (name, type, size, price, description, address, country, ownerID) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             [camping.name, camping.type, camping.size, camping.price, camping.description, camping.address, camping.country, camping.ownerId]
         );
@@ -191,7 +186,6 @@ app.post('/api/camping', async (req,res) => {
             const idResult = await DataView.getQuery('SELECT LAST_INSERT_ID() as id');
             camping.id = idResult[0].id;
         }
-        console.log(camping.id);
 
         for (const picture of images) {
             await db.getQuery(
@@ -199,15 +193,11 @@ app.post('/api/camping', async (req,res) => {
                 [camping.id, picture]
             );
         }
-            
-        
-        
-
-
-        res.status(201).send({ message: 'User added successfully' });
+        console.log(`camping ${camping.name} added successfully`)
+        res.status(201).send({ message: 'Camping added successfully' });
     }
     catch (error){
-        res.status(500).send({ error: 'Failed to add user', details: error })
+        res.status(500).send({ error: 'Failed to add camping', details: error })
     }
 })
 
