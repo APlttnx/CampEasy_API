@@ -136,7 +136,6 @@ app.get('/api/users', async (req, res) => {
     }
 })
  //________________________________________________________________________________________________________________________________-
-
 app.put('/api/users', async(req,res) => {
     try{
         const token = req.headers['authorization'].replace('Bearer ','');
@@ -165,13 +164,12 @@ app.put('/api/users', async(req,res) => {
     }
 })
 //__________________________________________________________________________________________________________________________________________
-
 app.post('/api/camping', async (req,res) => {
     const token = req.headers['authorization'].replace('Bearer ','');
     const decoded = jwt.verify(token, JWT_SECRET);
     const userIdToken = decoded.userId
 
-    const {name, type, size, price, description, address, country, images} = req.body;
+    const {name, type, size, price, description, address, country, images, userRole} = req.body;
     const camping = new Camping(name, type, size, price, description, address, country, userIdToken, "", "", "");
 
     try{
@@ -186,12 +184,21 @@ app.post('/api/camping', async (req,res) => {
             const idResult = await DataView.getQuery('SELECT LAST_INSERT_ID() as id');
             camping.id = idResult[0].id;
         }
-
+        //afbeeldingen camping in aparte tabel
         for (const picture of images) {
             await db.getQuery(
                 'INSERT INTO campingpictures (campingID, picture) VALUES (?, ?)',
                 [camping.id, picture]
             );
+        }
+        //rol aanpassen van creator als hij nog een 'user' was
+        console.log(userRole);
+        if(userRole === "user"){
+            await db.getQuery(
+                `UPDATE users SET roleUser = ? WHERE id = ?`,
+                ['owner', camping.ownerId]
+            );
+            console.log("changed role to owner")
         }
         console.log(`camping ${camping.name} added successfully`)
         res.status(201).send({ message: 'Camping added successfully' });
