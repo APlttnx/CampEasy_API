@@ -169,7 +169,8 @@ app.post('/api/camping', async (req,res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const userIdToken = decoded.userId
 
-    const {name, type, size, price, description, address, country, images, userRole} = req.body;
+    const {name, type, size, price, description, address, country, images,facilities, userRole, } = req.body;
+    console.log(req.body);
     const camping = new Camping(name, type, size, price, description, address, country, userIdToken, "", "", "");
 
     try{
@@ -177,7 +178,6 @@ app.post('/api/camping', async (req,res) => {
         const result = await db.getQuery('INSERT INTO campings (name, type, size, price, description, address, country, ownerID) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             [camping.name, camping.type, camping.size, camping.price, camping.description, camping.address, camping.country, camping.ownerId]
         );
-        console.log(camping.name)
         if (result.insertId){
             camping.id = result.insertId;
         }else{
@@ -192,7 +192,6 @@ app.post('/api/camping', async (req,res) => {
             );
         }
         //rol aanpassen van creator als hij nog een 'user' was
-        console.log(userRole);
         if(userRole === "user"){
             await db.getQuery(
                 `UPDATE users SET roleUser = ? WHERE id = ?`,
@@ -200,6 +199,18 @@ app.post('/api/camping', async (req,res) => {
             );
             console.log("changed role to owner")
         }
+        
+
+        //facilities aanvullen
+        console.log('faciliteiten: ');
+        console.log(facilities);
+        for (const facilityID of facilities){
+            await db.getQuery(
+                'INSERT INTO campingfacilities (campingID, facilityID) VALUES (?, ?)',
+                [camping.id, facilityID]
+            );
+        }
+
         console.log(`camping ${camping.name} added successfully`)
         res.status(201).send({ message: 'Camping added successfully' });
     }
@@ -207,7 +218,17 @@ app.post('/api/camping', async (req,res) => {
         res.status(500).send({ error: 'Failed to add camping', details: error })
     }
 })
-
+app.get('/api/facilities', async(req,res) => {
+    const db = new Database();
+    try{
+        console.log("fetching facilities")
+        const result = await db.getQuery('SELECT * FROM facilities');
+        res.json(result);
+    }
+    catch (error){
+        res.status(500).send({ error: 'failed to connect to database', details: error.message });
+    }
+})
 app.listen(3100, () => {
     console.log('Server is running on port 3100')
 })
