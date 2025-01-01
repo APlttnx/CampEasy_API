@@ -19,7 +19,7 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
     allowedHeaders: ['Content-Type','Authorization'],
 }))
-
+app.set('maxHeaderSize', 16 * 1024 * 1024);  // Example: increase to 16 KB
 
 //endpoints
 //test
@@ -218,6 +218,48 @@ app.post('/api/camping', async (req,res) => {
         res.status(500).send({ error: 'Failed to add camping', details: error })
     }
 })
+app.get('/api/campingGeneralData', async (req,res) => {
+    const db = new Database();
+    try{
+        console.log("fetching campings");
+        const result = await db.getQuery(`
+            SELECT 
+                c.*, 
+                JSON_ARRAYAGG(f.facilityName) as facilities,
+                Max(cmp.picture) as image
+            FROM campings c
+            LEFT JOIN campingpictures cmp ON c.ID = cmp.campingID
+            LEFT JOIN campingfacilities cf ON c.ID = cf.campingID
+            LEFT JOIN facilities f ON cf.facilityID = f.ID 
+            GROUP BY c.ID;
+        `)
+       
+        const processedResult = result.map(camping => {
+            if (camping.image && Buffer.isBuffer(camping.image)) {
+                // Convert the Buffer into a proper base64 string
+                return {
+                    ...camping,
+                    image: `data:image/jpeg;base64,${camping.image.toString('base64')}`
+                };
+            } else {
+                // Default empty string or provide a default image URL
+                return {
+                    ...camping,
+                    image: ''  // or default image URL (e.g., '/assets/defaultCamp.webp')
+                };
+            }
+        });
+
+        res.json(processedResult);
+    }
+    catch (error){
+        res.status(500).send({ error: 'failed to connect to database', details: error.message });
+    }
+})
+app.get('/api/campingAllImages', async (req,res) => {
+    
+})
+
 app.get('/api/facilities', async(req,res) => {
     const db = new Database();
     try{
