@@ -224,16 +224,18 @@ app.get('/api/campingGeneralData', async (req,res) => {
         console.log("fetching campings");
         const result = await db.getQuery(`
             SELECT 
-                c.*, 
+                c.*,
+                u.firstName, u.lastName, u.preferredName, 
                 JSON_ARRAYAGG(f.facilityName) as facilities,
                 Max(cmp.picture) as image
             FROM campings c
             LEFT JOIN campingpictures cmp ON c.ID = cmp.campingID
             LEFT JOIN campingfacilities cf ON c.ID = cf.campingID
-            LEFT JOIN facilities f ON cf.facilityID = f.ID 
+            LEFT JOIN facilities f ON cf.facilityID = f.ID
+            JOIN users u ON c.OwnerID = u.ID 
             GROUP BY c.ID;
         `)
-       
+       console.log(result);
         const processedResult = result.map(camping => {
             if (camping.image && Buffer.isBuffer(camping.image)) {
                 // Convert the Buffer into a proper base64 string
