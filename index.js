@@ -30,7 +30,7 @@ app.get('/', (req, res) => {
 // ____________________________________________________________________________________________________________________________________
 //User Registration
 app.post('/api/users', async (req,res) => {
-    console.log(req.body);
+    // console.log(req.body);
     const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password} = req.body;
     const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, "", "", "");
 
@@ -142,14 +142,14 @@ app.put('/api/users', async(req,res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const userIdToken = decoded.userId
         console.log(userIdToken);
-        console.log(req.body);
+        // console.log(req.body);
 
         const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel} = req.body;
         const user = new User(firstName, lastName, preferredName, roleUser, email , phoneNumber, address, country, emergencyTel, "", "", "", userIdToken);
-        console.log(user);
+        // console.log(user);
 
         const db = new Database();
-        console.log('User ID:',user.id);
+        // console.log('User ID:',user.id);
         await db.getQuery(`
             UPDATE users 
             SET firstName = ?, lastName = ?, preferredName = ?, roleUser = ?, phoneNumber = ?, address = ?, country = ?, emergencyTel = ? 
@@ -225,7 +225,7 @@ app.get('/api/campingGeneralData', async (req,res) => {
         const result = await db.getQuery(`
             SELECT 
                 c.*,
-                u.firstName, u.lastName, u.preferredName, 
+                u.firstName, u.lastName, 
                 JSON_ARRAYAGG(f.facilityName) as facilities,
                 Max(cmp.picture) as image
             FROM campings c
@@ -235,19 +235,22 @@ app.get('/api/campingGeneralData', async (req,res) => {
             JOIN users u ON c.OwnerID = u.ID 
             GROUP BY c.ID;
         `)
-       console.log(result);
+    //    console.log(result);
         const processedResult = result.map(camping => {
+            const formattedDate = camping.updateDate
+                ? new Date(camping.updateDate).toLocaleDateString('en-GB')
+                : null;
             if (camping.image && Buffer.isBuffer(camping.image)) {
-                // Convert the Buffer into a proper base64 string
                 return {
                     ...camping,
-                    image: `data:image/jpeg;base64,${camping.image.toString('base64')}`
+                    image: `data:image/jpeg;base64,${camping.image.toString('base64')}`,
+                    updateDate: formattedDate,
                 };
             } else {
-                // Default empty string or provide a default image URL
                 return {
                     ...camping,
-                    image: ''  // or default image URL (e.g., '/assets/defaultCamp.webp')
+                    image: '',
+                    updateDate: formattedDate,
                 };
             }
         });
