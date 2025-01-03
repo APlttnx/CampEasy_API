@@ -170,7 +170,7 @@ app.post('/api/camping', async (req,res) => {
     const userIdToken = decoded.userId
 
     const {name, type, size, price, description, address, country, images,facilities, userRole, } = req.body;
-    console.log(req.body);
+    //console.log(req.body);
     const camping = new Camping(name, type, size, price, description, address, country, userIdToken, "", "", "");
 
     try{
@@ -203,7 +203,7 @@ app.post('/api/camping', async (req,res) => {
 
         //facilities aanvullen
         console.log('faciliteiten: ');
-        console.log(facilities);
+        //console.log(facilities);
         for (const facilityID of facilities){
             await db.getQuery(
                 'INSERT INTO campingfacilities (campingID, facilityID) VALUES (?, ?)',
@@ -225,11 +225,11 @@ app.get('/api/campingGeneralData', async (req,res) => {
         const result = await db.getQuery(`
             SELECT 
                 c.*,
-                u.firstName, u.lastName, 
+                u.firstName, u.lastName,
                 JSON_ARRAYAGG(f.facilityName) as facilities,
-                Max(cmp.picture) as image
+                JSON_ARRAYAGG(i.picture) as imageUrls
             FROM campings c
-            LEFT JOIN campingpictures cmp ON c.ID = cmp.campingID
+            LEFT JOIN campingpictures i ON c.ID = i.campingID
             LEFT JOIN campingfacilities cf ON c.ID = cf.campingID
             LEFT JOIN facilities f ON cf.facilityID = f.ID
             JOIN users u ON c.OwnerID = u.ID 
@@ -263,6 +263,53 @@ app.get('/api/campingGeneralData', async (req,res) => {
 })
 app.get('/api/campingAllImages', async (req,res) => {
     
+})
+app.post('/api/bookings', async(req,res) => {
+    try{
+        const token = req.headers['authorization'].replace('Bearer ','');
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userIdToken = decoded.userId;
+        const {startDate, endDate, campingId, totalPrice} = req.body;
+        console.log("test1");
+
+        console.log(startDate);
+
+        if (totalPrice < 0 || !campingId){
+            return res.status(401).json({ error: 'Foutieve input HELLO THERE'});
+        };
+        console.log("test2");
+        const db = new Database;
+        await db.getQuery(`INSERT INTO bookings(campingID, userID, startDate, endDate, totalPrice) VALUES (?,?,STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),?)`,
+            [campingId, userIdToken, startDate, endDate, totalPrice]
+        );
+
+        console.log(`Booking added successfully`)
+        res.status(201).send({ message: 'Booking added successfully' });
+
+    }catch (error){
+        res.status(500).send({ error: 'Failed to add booking', details: error })
+    }
+
+
+})
+app.get('/api/bookedDates', async (req, res) => {
+    const db = new Database();
+    const campingID = req.query.campingID;
+    try{
+        console.log("fetching bookings for camping " + campingID);
+        const result = await db.getQuery(`
+            SELECT startDate, endDate 
+            FROM bookings 
+            WHERE campingID = ?
+            AND endDate > CURDATE();`,
+            [campingID]
+        );
+        console.log(result);
+        res.json(result);
+    }
+    catch (error){
+        res.status(500).send({ error: 'failed to connect to database', details: error.message });
+    }
 })
 
 app.get('/api/facilities', async(req,res) => {
