@@ -304,8 +304,45 @@ app.get('/api/bookedDates', async (req, res) => {
             AND endDate > CURDATE();`,
             [campingID]
         );
-        console.log(result);
+        // console.log(result);
         res.json(result);
+    }
+    catch (error){
+        res.status(500).send({ error: 'failed to connect to database', details: error.message });
+    }
+})
+
+app.get('/api/bookingsOverview', async (req, res) => {
+    const db = new Database();
+    try{
+        const token = req.headers['authorization'].replace('Bearer ','')
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userIdToken = decoded.userId
+
+        console.log(`fetching campings booked by user ${userIdToken}`);
+        const result = await db.getQuery(`
+            SELECT 
+                c.ID as campingID,
+                b.startDate,
+                b.endDate
+            FROM campings c
+            JOIN bookings b on c.ID = b.campingID
+                JOIN users u ON b.userID = u.ID
+            WHERE u.ID = ?
+            ORDER BY b.startDate;`,[userIdToken]
+            
+        );
+        const processedResult = result.map(camping => {
+            const formattedStartDate = new Date(camping.startDate).toLocaleDateString('en-GB')
+            const formattedEndDate = new Date(camping.endDate).toLocaleDateString('en-GB')
+            return {
+                ...camping,
+                startDate: formattedStartDate,
+                endDate: formattedEndDate,
+            };
+        });
+
+        res.json(processedResult);
     }
     catch (error){
         res.status(500).send({ error: 'failed to connect to database', details: error.message });
