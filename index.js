@@ -93,7 +93,7 @@ app.post('/api/login', async (req, res) => {
         res.json({
             token,
             // userID: u.userID,
-            // userRole: u.roleUser,
+            userRole: u.roleUser,
             userGreetName: u.preferredName || u.firstName,
             
         },
@@ -262,7 +262,37 @@ app.get('/api/campingGeneralData', async (req,res) => {
         res.status(500).send({ error: 'failed to connect to database', details: error.message });
     }
 })
+app.get('/api/ownerCampings', async (req, res) =>{
+    const db = new Database();
+    try{
+        const token = req.headers['authorization'].replace('Bearer ','')
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userIdToken = decoded.userId
 
+        console.log(`fetching campings and earnings owned by user ${userIdToken}`);
+        const totalEarnings = await db.getQuery(`
+            SELECT SUM(b.totalPrice) as totalEarnings
+            FROM campings c
+            LEFT JOIN bookings b on c.ID = b.campingID
+            WHERE c.ownerID = ?
+            GROUP BY c.ownerID;`, [userIdToken]
+        );
+        const campingEarnings = await db.getQuery(`
+            SELECT c.ID, SUM(b.totalPrice) as campingEarnings
+            FROM campings c
+            LEFT JOIN bookings b on c.ID = b.campingID
+            WHERE c.ownerID = ?
+            GROUP BY c.ID;`, [userIdToken]
+        );
+        const result = {totalEarnings, campingEarnings};
+
+        res.json(result);
+    }
+    catch (error){
+        console.log(error);
+        res.status(500).send({ error: 'failed to connect to database', details: error.message });
+    }
+})
 app.post('/api/bookings', async(req,res) => {
     try{
         const token = req.headers['authorization'].replace('Bearer ','');
@@ -292,26 +322,6 @@ app.post('/api/bookings', async(req,res) => {
 
 
 })
-app.get('/api/bookedDates', async (req, res) => {
-    const db = new Database();
-    const campingID = req.query.campingID;
-    try{
-        console.log("fetching bookings for camping " + campingID);
-        const result = await db.getQuery(`
-            SELECT startDate, endDate 
-            FROM bookings 
-            WHERE campingID = ?
-            AND endDate > CURDATE();`,
-            [campingID]
-        );
-        // console.log(result);
-        res.json(result);
-    }
-    catch (error){
-        res.status(500).send({ error: 'failed to connect to database', details: error.message });
-    }
-})
-
 app.get('/api/bookingsOverview', async (req, res) => {
     const db = new Database();
     try{
@@ -348,6 +358,28 @@ app.get('/api/bookingsOverview', async (req, res) => {
         res.status(500).send({ error: 'failed to connect to database', details: error.message });
     }
 })
+app.get('/api/bookedDates', async (req, res) => {
+    const db = new Database();
+    const campingID = req.query.campingID;
+    try{
+        console.log("fetching bookings for camping " + campingID);
+        const result = await db.getQuery(`
+            SELECT startDate, endDate 
+            FROM bookings 
+            WHERE campingID = ?
+            AND endDate > CURDATE();`,
+            [campingID]
+        );
+        // console.log(result);
+        res.json(result);
+    }
+    catch (error){
+        res.status(500).send({ error: 'failed to connect to database', details: error.message });
+    }
+})
+
+
+
 
 app.get('/api/facilities', async(req,res) => {
     const db = new Database();
