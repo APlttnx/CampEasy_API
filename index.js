@@ -1,16 +1,16 @@
 //importeren express module vanuit node_modules
 const express = require('express');
-const bodyParser = require('body-parser');
 const cors = require('cors');
 const bcrypt = require('bcrypt'); // wachtwoordbeveiliging
 const jwt = require('jsonwebtoken');
-
+require('dotenv').config()
+const JWT_SECRET = process.env.JWT_SECRET;
 // klasses importeren
 const Database = require('./classes/database.js');
 const User = require('./classes/user.js');
 const Camping = require('./classes/camping.js');
 const app = express();
-const JWT_SECRET = 'CampEasyPass_WebFundies_20242025_1613';
+
 
 
 app.use(express.json({limit: '10mb'}));
@@ -92,7 +92,8 @@ app.post('/api/login', async (req, res) => {
 
         res.json({
             token,
-            userRole: u.roleUser,
+            // userID: u.userID,
+            // userRole: u.roleUser,
             userGreetName: u.preferredName || u.firstName,
             
         },
@@ -261,25 +262,24 @@ app.get('/api/campingGeneralData', async (req,res) => {
         res.status(500).send({ error: 'failed to connect to database', details: error.message });
     }
 })
-app.get('/api/campingAllImages', async (req,res) => {
-    
-})
+
 app.post('/api/bookings', async(req,res) => {
     try{
         const token = req.headers['authorization'].replace('Bearer ','');
         const decoded = jwt.verify(token, JWT_SECRET);
         const userIdToken = decoded.userId;
         const {startDate, endDate, campingId, totalPrice} = req.body;
-        console.log("test1");
+        // console.log("test1");
 
-        console.log(startDate);
+        // console.log(startDate);
 
         if (totalPrice < 0 || !campingId){
-            return res.status(401).json({ error: 'Foutieve input HELLO THERE'});
+            return res.status(401).json({ error: 'Foutieve input'});
         };
-        console.log("test2");
+        // console.log("test2");
         const db = new Database;
-        await db.getQuery(`INSERT INTO bookings(campingID, userID, startDate, endDate, totalPrice) VALUES (?,?,STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),?)`,
+        await db.getQuery(`INSERT INTO bookings(campingID, userID, startDate, endDate, totalPrice) 
+            VALUES (?,?,STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),?)`,
             [campingId, userIdToken, startDate, endDate, totalPrice]
         );
 
