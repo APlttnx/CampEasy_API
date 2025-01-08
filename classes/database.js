@@ -14,11 +14,12 @@ class Database {
         });
         return connection;
     }
-    //get --> zal doorgestuurde sql queries uitvoeren
+
     async getQuery(sql, params) {
         const connection = await this.connect();
-        const [rows] = await connection.execute(sql, params);
-        return rows;
+        return connection.execute(sql, params)
+            .then(([rows]) => rows)
+            .finally(() => connection.end())
     }
 }
 
