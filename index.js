@@ -270,13 +270,14 @@ app.get('/api/ownerCampings', async (req, res) =>{
         const userIdToken = decoded.userId
 
         console.log(`fetching campings and earnings owned by user ${userIdToken}`);
-        const totalEarnings = await db.getQuery(`
-            SELECT SUM(b.totalPrice) as totalEarnings
+        const resultTotal = await db.getQuery(`
+            SELECT SUM(b.totalPrice) as total
             FROM campings c
             LEFT JOIN bookings b on c.ID = b.campingID
             WHERE c.ownerID = ?
             GROUP BY c.ownerID;`, [userIdToken]
         );
+        const totalEarnings = resultTotal[0]?.total || 0;
         const campingEarnings = await db.getQuery(`
             SELECT c.ID, SUM(b.totalPrice) as campingEarnings
             FROM campings c
