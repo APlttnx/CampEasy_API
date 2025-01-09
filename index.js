@@ -4,7 +4,8 @@ const cors = require('cors');
 const bcrypt = require('bcrypt'); // wachtwoordbeveiliging
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
-const JWT_SECRET = process.env.JWT_SECRET;
+// const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = 'CampEasyPass_WebFundies_20242025_1613'; //Zit normaal gezien in .env file, maar voor schoolopdracht even hier gezet
 // klasses importeren
 const Database = require('./classes/database.js');
 const User = require('./classes/user.js');
@@ -13,7 +14,7 @@ const app = express();
 
 
 
-app.use(express.json({limit: '10mb'}));
+app.use(express.json());
 app.use(cors({
     origin:'http://localhost:8080',
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
@@ -21,20 +22,18 @@ app.use(cors({
 }))
 app.set('maxHeaderSize', 16 * 1024 * 1024);  // Example: increase to 16 KB
 
-//endpoints
-//test
+
 app.get('/', (req, res) => {
     res.send('Hello World!');
 });
 
 // ____________________________________________________________________________________________________________________________________
-//User Registration
+//Users
 app.post('/api/users', async (req,res) => {
-    // console.log(req.body);
-    const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password} = req.body;
-    const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, "", "", "");
-
     try{
+        const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password} = req.body;
+        const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, "", "", "");
+
         if (!user.isValidEmail()) {
             return res.status(201).send({ error: 'Invalid email format' });
         }
@@ -62,12 +61,11 @@ app.post('/api/users', async (req,res) => {
         res.status(500).send({ error: 'Failed to add user', details: error })
     }
 })
-// ____________________________________________________________________________________________________________________________________
 app.post('/api/login', async (req, res) => {
-    const {email, password} = req.body;
-    const db = new Database();
-
     try {
+        const {email, password} = req.body;
+        const db = new Database();
+
         const result = await db.getQuery(
             `SELECT u.id, u.roleUser, u.firstName, u.preferredName, p.password
             FROM users u
@@ -92,7 +90,6 @@ app.post('/api/login', async (req, res) => {
 
         res.json({
             token,
-            // userID: u.userID,
             userRole: u.roleUser,
             userGreetName: u.preferredName || u.firstName,
             
@@ -102,14 +99,13 @@ app.post('/api/login', async (req, res) => {
         res.status(500).send({ error: 'Login failed', details: error.message });
     }
 })
-// ____________________________________________________________________________________________________________________________________
 app.get('/api/users', async (req, res) => {
-    const token = req.headers['authorization'].replace('Bearer ','');
-    const db = new Database();
-
     try{
+        const token = req.headers['authorization'].replace('Bearer ','');
         const decoded = jwt.verify(token, JWT_SECRET);
         const userIdToken = decoded.userId
+
+        const db = new Database();
         const result = await db.getQuery('SELECT * FROM users WHERE id = ?', [userIdToken]);
 
         if (result.length == 0) {
@@ -119,7 +115,6 @@ app.get('/api/users', async (req, res) => {
         const user = new User(u.firstName, u.lastName, u.preferredName, u.roleUser, u.email, u.phoneNumber, u.address, u.country,u.emergencyTel,"",u.creationDate,u.updateDate, u.id);
 
         res.json({
-            id: user.id,
             firstName: user.firstName,
             lastName: user.lastName,
             preferredName: user.preferredName,
@@ -136,13 +131,13 @@ app.get('/api/users', async (req, res) => {
         res.status(500).send({ error: 'failed to connect to database', details: error.message });
     }
 })
- //________________________________________________________________________________________________________________________________-
 app.put('/api/users', async(req,res) => {
     try{
         const token = req.headers['authorization'].replace('Bearer ','');
         const decoded = jwt.verify(token, JWT_SECRET);
         const userIdToken = decoded.userId
-        console.log(userIdToken);
+
+        // console.log(userIdToken);
         // console.log(req.body);
 
         const {firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel} = req.body;
@@ -164,7 +159,7 @@ app.put('/api/users', async(req,res) => {
         res.status(500).send({ error: 'Failed to update user', details: error })
     }
 })
-//__________________________________________________________________________________________________________________________________________
+//Campings
 app.post('/api/camping', async (req,res) => {
     const token = req.headers['authorization'].replace('Bearer ','');
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -241,20 +236,13 @@ app.get('/api/campingGeneralData', async (req,res) => {
             const formattedDate = camping.updateDate
                 ? new Date(camping.updateDate).toLocaleDateString('en-GB')
                 : null;
-            if (camping.image && Buffer.isBuffer(camping.image)) {
-                return {
-                    ...camping,
-                    image: `data:image/jpeg;base64,${camping.image.toString('base64')}`,
-                    updateDate: formattedDate,
-                };
-            } else {
-                return {
-                    ...camping,
-                    image: '',
-                    updateDate: formattedDate,
-                };
-            }
-        });
+           
+            return {
+                ...camping,
+                image: '',
+                updateDate: formattedDate,
+            };
+        });       
 
         res.json(processedResult);
     }
@@ -263,11 +251,12 @@ app.get('/api/campingGeneralData', async (req,res) => {
     }
 })
 app.get('/api/ownerCampings', async (req, res) =>{
-    const db = new Database();
     try{
         const token = req.headers['authorization'].replace('Bearer ','')
         const decoded = jwt.verify(token, JWT_SECRET);
         const userIdToken = decoded.userId
+
+        const db = new Database();
 
         console.log(`fetching campings and earnings owned by user ${userIdToken}`);
         const resultTotal = await db.getQuery(`
@@ -294,35 +283,18 @@ app.get('/api/ownerCampings', async (req, res) =>{
         res.status(500).send({ error: 'failed to connect to database', details: error.message });
     }
 })
-app.post('/api/bookings', async(req,res) => {
+app.get('/api/facilities', async(req,res) => {
+    const db = new Database();
     try{
-        const token = req.headers['authorization'].replace('Bearer ','');
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const userIdToken = decoded.userId;
-        const {startDate, endDate, campingId, totalPrice} = req.body;
-        // console.log("test1");
-
-        // console.log(startDate);
-
-        if (totalPrice < 0 || !campingId){
-            return res.status(401).json({ error: 'Foutieve input'});
-        };
-        // console.log("test2");
-        const db = new Database;
-        await db.getQuery(`INSERT INTO bookings(campingID, userID, startDate, endDate, totalPrice) 
-            VALUES (?,?,STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),?)`,
-            [campingId, userIdToken, startDate, endDate, totalPrice]
-        );
-
-        console.log(`Booking added successfully`)
-        res.status(201).send({ message: 'Booking added successfully' });
-
-    }catch (error){
-        res.status(500).send({ error: 'Failed to add booking', details: error })
+        console.log("fetching facilities")
+        const result = await db.getQuery('SELECT * FROM facilities ORDER BY ID');
+        res.json(result);
     }
-
-
+    catch (error){
+        res.status(500).send({ error: 'failed to connect to database', details: error.message });
+    }
 })
+//bookings
 app.get('/api/bookingsOverview', async (req, res) => {
     const db = new Database();
     try{
@@ -359,6 +331,34 @@ app.get('/api/bookingsOverview', async (req, res) => {
         res.status(500).send({ error: 'failed to connect to database', details: error.message });
     }
 })
+app.post('/api/bookings', async(req,res) => {
+    try{
+        const token = req.headers['authorization'].replace('Bearer ','');
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userIdToken = decoded.userId;
+
+        const {startDate, endDate, campingId, totalPrice} = req.body;
+        // console.log("test1");
+
+        if (totalPrice < 0 || !campingId){
+            return res.status(401).json({ error: 'Foutieve input'});
+        };
+        // console.log("test2");
+        const db = new Database;
+        await db.getQuery(`INSERT INTO bookings(campingID, userID, startDate, endDate, totalPrice) 
+            VALUES (?,?,STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),?)`,
+            [campingId, userIdToken, startDate, endDate, totalPrice]
+        );
+
+        console.log(`Booking added successfully`)
+        res.status(201).send({ message: 'Booking added successfully' });
+
+    }catch (error){
+        res.status(500).send({ error: 'Failed to add booking', details: error })
+    }
+
+
+})
 app.get('/api/bookedDates', async (req, res) => {
     const db = new Database();
     const campingID = req.query.campingID;
@@ -380,19 +380,6 @@ app.get('/api/bookedDates', async (req, res) => {
 })
 
 
-
-
-app.get('/api/facilities', async(req,res) => {
-    const db = new Database();
-    try{
-        console.log("fetching facilities")
-        const result = await db.getQuery('SELECT * FROM facilities');
-        res.json(result);
-    }
-    catch (error){
-        res.status(500).send({ error: 'failed to connect to database', details: error.message });
-    }
-})
 app.listen(3100, () => {
     console.log('Server is running on port 3100')
 })
