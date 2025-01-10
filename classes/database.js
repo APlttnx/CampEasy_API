@@ -19,7 +19,7 @@ class Database {
         const connection = await this.connect();
         return connection.execute(sql, params)
             .then(([rows]) => rows)
-            .finally(() => connection.end())
+            .finally(() => connection.end()) //connectie sluiten
     }
 }
 

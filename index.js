@@ -20,6 +20,8 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 
+//settings voor image upload
+const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
 const storage = multer.diskStorage({
@@ -31,7 +33,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 app.use('/uploads', express.static('uploads'));
 
-app.set('maxHeaderSize', 16 * 1024 * 1024);
+app.set('maxHeaderSize', 16 * 1024 * 1024); //Ik denk niet meer dat dit nodig is, maar ik durf het niet goed weg te halen...
 
 
 app.get('/', (req, res) => {
@@ -45,16 +47,18 @@ app.post('/api/users', async (req, res) => {
         const { firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password } = req.body;
         const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, "", "", "");
 
-
-
+        //input checkers
         if (!user.isValidEmail()) return res.status(400).send({ error: 'Invalid email format' });
+        if (!user.areInputsValid()) return res.status(400).send({ error: 'Invalid inputs' });
         
+        //password hashing
         await user.hashPassword();
 
         const db = new Database();
+
         //check of email al in db zit
         const presentMails = await db.getQuery("SELECT email FROM users WHERE users.email = ?",[user.email]);
-        if (presentMails) return res.status(409).send({ error: 'Email already in use' });
+        if (presentMails.length!=0) return res.status(409).send({ error: 'Email already in use' });
 
         const result = await db.getQuery('INSERT INTO users (firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [user.firstName, user.lastName, user.preferredName, user.roleUser, user.email, user.phoneNumber, user.address, user.country, user.emergencyTel]
@@ -99,7 +103,7 @@ app.post('/api/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { userId: u.id, role: u.roleUser },
+            { userId: u.id },
             JWT_SECRET,
             { expiresIn: '24h' }
         )
@@ -139,6 +143,7 @@ app.get('/api/users', async (req, res) => {
             phonenumber: user.phoneNumber,
             address: user.address,
             country: user.country,
+            emergencyTel: user.emergencyTel,
             creationDate: user.creationDate,
             updateDate: user.updateDate,
         });
@@ -156,10 +161,11 @@ app.put('/api/users', async (req, res) => {
         // console.log(userIdToken);
         // console.log(req.body);
 
-        const { firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel } = req.body;
-        const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, "", "", "", userIdToken);
-        // console.log(user);
-
+        const { firstName, lastName, preferredName, userRole, email, phoneNumber, address, country, emergencyTel } = req.body;
+        const user = new User(firstName, lastName, preferredName, userRole, email, phoneNumber, address, country, emergencyTel, "", "", "", userIdToken);
+        // console.log(user)
+        if (!user.areInputsValid()) return res.status(400).send({ error: 'Invalid input' });
+        
         const db = new Database();
         // console.log('User ID:',user.id);
         await db.getQuery(`
@@ -185,16 +191,30 @@ app.post('/api/campingImageUpload', upload.single('image'), async (req, res) => 
         res.status(500).send({ error: "Failed to upload image" })
     }
 })
-app.post('/api/camping', async (req, res) => {
-    const token = req.headers['authorization'].replace('Bearer ', '');
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const userIdToken = decoded.userId
-
-    const { name, type, size, price, description, address, country, imageUrl, facilities, userRole, } = req.body;
-    //console.log(req.body);
-    const camping = new Camping(name, type, size, price, description, address, country, userIdToken, "", "", "");
-
+app.delete('/api/campingImageUpload', async (req, res) => {
     try {
+        const object = req.body;
+        const filepath = path.join(__dirname, object.imageUrl);
+        fs.unlink(filepath, (err)=>{
+            console.error('Error removing file:', err);
+            return;
+        });
+        res.status(201).send({ message: 'image removed' });
+    } catch (error) {
+        res.status(500).send({ error: "Failed to remove image" })
+    }
+})
+app.post('/api/camping', async (req, res) => {
+    try {
+        const token = req.headers['authorization'].replace('Bearer ', '');
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userIdToken = decoded.userId
+
+        const { name, type, size, price, description, address, country, imageUrl, facilities, userRole, } = req.body;;
+        const camping = new Camping(name, type, size, price, description, address, country, userIdToken, "", "", "");
+        if (!camping.areInputsValid()){
+            res.status(400).send({ error: 'Invalid input' });
+        }
         const db = new Database();
         const result = await db.getQuery('INSERT INTO campings (name, type, size, price, description, address, country, ownerID) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             [camping.name, camping.type, camping.size, camping.price, camping.description, camping.address, camping.country, camping.ownerId]
@@ -206,7 +226,7 @@ app.post('/api/camping', async (req, res) => {
             camping.id = idResult[0].id;
         }
         
-        //image upload
+        //imageUrl upload
         await db.getQuery(
             'INSERT INTO campingpictures (campingID, picture) VALUES (?, ?)',
             [camping.id, imageUrl]
@@ -220,7 +240,7 @@ app.post('/api/camping', async (req, res) => {
         // }
         //#endregion
 
-
+        //als user camping maakt --> wisselen naar owner
         if (userRole === "user") {
             await db.getQuery(
                 `UPDATE users SET roleUser = ? WHERE id = ?`,
@@ -229,10 +249,7 @@ app.post('/api/camping', async (req, res) => {
             console.log("changed role to owner")
         }
 
-
-        //facilities aanvullen
-        console.log('faciliteiten: ');
-        //console.log(facilities);
+        //facilities
         for (const facilityID of facilities) {
             await db.getQuery(
                 'INSERT INTO campingfacilities (campingID, facilityID) VALUES (?, ?)',
@@ -264,17 +281,15 @@ app.get('/api/campingGeneralData', async (req, res) => {
             JOIN users u ON c.OwnerID = u.ID 
             GROUP BY c.ID;
         `)
-        //    console.log(result);
         const processedResult = result.map(camping => {
             const formattedDate = camping.updateDate
                 ? new Date(camping.updateDate).toLocaleDateString('en-GB')
                 : null;
 
-            //voor development
+            //enkel voor development --> localhost toevoegen aan link, anders vindt FE de afbeeldingen niet
             const adaptedImageUrl = !!camping.imageUrl
                 ? `http://localhost:3100${camping.imageUrl}#/`
                 : '';
-            console.log(adaptedImageUrl);
             return {
                 ...camping,
                 imageUrl: adaptedImageUrl,
@@ -377,12 +392,10 @@ app.post('/api/bookings', async (req, res) => {
         const userIdToken = decoded.userId;
 
         const { startDate, endDate, campingId, totalPrice } = req.body;
-        // console.log("test1");
 
         if (totalPrice < 0 || !campingId) {
             return res.status(401).json({ error: 'Foutieve input' });
         };
-        // console.log("test2");
         const db = new Database;
         await db.getQuery(`INSERT INTO bookings(campingID, userID, startDate, endDate, totalPrice) 
             VALUES (?,?,STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),STR_TO_DATE(?, '%Y-%m-%dT%H:%i:%s.%fZ'),?)`,

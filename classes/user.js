@@ -10,9 +10,9 @@ class User{
         this.address = address;
         this.country = country
         this.password = password;
-        this.creationDate = creationDate; //wordt aangemaakt in de DB
-        this.updateDate = updateDate; //wordt aangemaakt in de DB
-        this.id = id; //wordt aangemaakt in de DB
+        this.creationDate = creationDate; 
+        this.updateDate = updateDate; 
+        this.id = id; 
     }
 
     isValidEmail() {
@@ -20,9 +20,16 @@ class User{
         return mailRegex.test(this.email);
     }
 
-    async hashPassword() { //async --> deze methode blokkeert de rest van het programma niet wanneer deze runt, 
+    async hashPassword() { //async 
         const bcrypt = require('bcrypt');
         this.password = await bcrypt.hash(this.password, 10); // 10 = complexiteit van hashen/salting, 10 = default
+    }
+    //covert niet alles
+    areInputsValid(){
+        if (!this.firstName || !this.lastName ) return false;
+        if (!this.id&&(!this.email || !this.password)) return false;
+        if (this.firstName.length>100 || this.lastName.length>100 || this.preferredName.length>100) return false;
+        return true;
     }
 }
 module.exports = User;
