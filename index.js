@@ -45,12 +45,17 @@ app.post('/api/users', async (req, res) => {
         const { firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password } = req.body;
         const user = new User(firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel, password, "", "", "");
 
-        if (!user.isValidEmail()) {
-            return res.status(201).send({ error: 'Invalid email format' });
-        }
+
+
+        if (!user.isValidEmail()) return res.status(400).send({ error: 'Invalid email format' });
+        
         await user.hashPassword();
 
         const db = new Database();
+        //check of email al in db zit
+        const presentMails = await db.getQuery("SELECT email FROM users WHERE users.email = ?",[user.email]);
+        if (presentMails) return res.status(409).send({ error: 'Email already in use' });
+
         const result = await db.getQuery('INSERT INTO users (firstName, lastName, preferredName, roleUser, email, phoneNumber, address, country, emergencyTel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [user.firstName, user.lastName, user.preferredName, user.roleUser, user.email, user.phoneNumber, user.address, user.country, user.emergencyTel]
         );
@@ -340,7 +345,8 @@ app.get('/api/bookingsOverview', async (req, res) => {
             SELECT 
                 c.ID as campingID,
                 b.startDate,
-                b.endDate
+                b.endDate,
+                b.totalPrice
             FROM campings c
             JOIN bookings b on c.ID = b.campingID
                 JOIN users u ON b.userID = u.ID
